@@ -1,0 +1,16 @@
+{
+  "name": "cryptonotes_server",
+  "version": "1.0.0",
+  "main": "main.js",
+  "license": "MIT",
+  "dependencies": {
+    "crypto-js": "^3.1.9-1",
+    "cuid": "^2.1.6",
+    "express": "^4.17.1",
+    "graphql-yoga": "^1.18.3",
+    "nedb": "^1.8.0"
+  },
+  "scripts": {
+    "start": "node main.js"
+  }
+}
