@@ -25,7 +25,7 @@ function decryptString(str) {
 }
 
 db.ensureIndex({fieldName: "key", unique: true}, function (err) {
-    !err ? console.log("Index created: key") : console.log("Index create error: key");
+    err ? console.log("Index create error: key") : console.log("Index created: key");
 });
 
 const typeDefs = `
