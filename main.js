@@ -25,11 +25,7 @@ function decryptString(str) {
 }
 
 db.ensureIndex({fieldName: "key", unique: true}, function (err) {
-    if (!err) {
-        console.log("Index created: key");
-    } else {
-        console.log("Index create error: key");
-    }
+    !err ? console.log("Index created: key") : console.log("Index create error: key");
 });
 
 const typeDefs = `
@@ -51,7 +47,7 @@ const typeDefs = `
 
 function isNoteExists(key) {
     return new Promise((resolve, reject) => {
-        db.count({key: key}, function (err, count) {
+        db.count({key: key}, (err, count) => {
             resolve(count === 1);
         });
     })
@@ -61,95 +57,72 @@ const resolvers = {
     Query: {
         note: (root, {key, password_hash}, ctx, info) =>
             new Promise((resolve, reject) => {
-                db.find({key: key, password_hash: password_hash}, function (
+                db.find({key: key, password_hash: password_hash}, (
                     err,
                     docs
-                ) {
-                    if (docs.length === 0) {
-                        return reject("Not found or wrong password");
-                    }
-
-                    const result = {
-                        key: docs[0].key,
-                        text: decryptString(docs[0].text)
-                    };
-                    resolve(result);
+                ) => {
+                    return docs.length === 0 ? 
+                        reject("Not found or wrong password") :
+                        resolve({
+                            key: docs[0].key,
+                            text: decryptString(docs[0].text)
+                        });                  
                 });
             }),
         note_exist: (root, {key}, ctx, info) => isNoteExists(key)
     },
     Mutation: {
         update_note: async (root, {key, password_hash, text}, ctx, info) => {
-            const isExists = await isNoteExists(key);
-            if (isExists) {
-                return new Promise((resolve, reject) => {
+            return await isNoteExists(key) ?
+                new Promise((resolve, reject) => {
                     db.find({key: key}, async (err, docs) => {
-                        if (err || docs.length === 0) {
-                            return reject("Note not found");
-                        } else {
-                            if (docs[0].password_hash !== password_hash) {
-                                return reject("Wrong password");
-                            }
+                        if (err || docs.length === 0)
+                            return reject("Note not found")
+                        if (docs[0].password_hash !== password_hash) 
+                            return reject("Wrong password");
 
-                            db.update(
-                                {key: key},
-                                {$set: {text: encryptString(text)}},
-                                {},
-                                async (err, numReplaced) => {
-                                    if (err || numReplaced === 0) {
-                                        return reject("Update note error");
-                                    } else {
-                                        return resolve({
-                                            key: key,
-                                            password_hash: password_hash,
-                                            text: text
-                                        });
-                                    }
-                                }
-                            );
-                        }
+                        db.update(
+                            {key: key},
+                            {$set: {text: encryptString(text)}},
+                            {},
+                            async (err, numReplaced) => {
+                                return err || numReplaced === 0 ? 
+                                    reject("Update note error") : 
+                                    resolve({
+                                        key: key,
+                                        password_hash: password_hash,
+                                        text: text
+                                    })
+                            }
+                        );
                     });
-                })
-            } else {
-                return new Promise((resolve, reject) => {
-                    let noteKey;
-                    if (!key) {
-                        noteKey = cuid();
-                    } else {
-                        noteKey = key;
-                    }
+                }) :
+                new Promise((resolve, reject) => {
+                    let noteKey = !key ? cuid() : key;
                     db.insert(
                         {
                             key: noteKey,
                             password_hash: password_hash,
                             text: encryptString(text)
                         },
-                        function (err, newDoc) {
-                            if (!err) {
-                                resolve({
-                                    key: noteKey,
-                                    password_hash: password_hash,
-                                    text: text
-                                });
-                            } else {
-                                throw new Error(err);
-                            }
+                        (err, newDoc) => {
+                            if (err) throw new Error(err);
+                            resolve({
+                                key: noteKey,
+                                password_hash: password_hash,
+                                text: text
+                            });
                         }
                     );
                 })
-            }
         },
         delete_note: (root, {key, password_hash}, ctx, info) =>
             new Promise((resolve, reject) => {
-                db.remove({key: key, password_hash: password_hash}, {}, function (
+                db.remove({key: key, password_hash: password_hash}, {}, (
                     err,
                     numRemoved
-                ) {
-                    if (numRemoved === 1) {
-                        resolve(true);
-                    } else {
-                        resolve(false);
-                    }
+                ) => {
+                    resolve(numRemoved === 1)
                 });
             })
     }
