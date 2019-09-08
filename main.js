@@ -13,7 +13,8 @@ const config = {
 
 const db = new Datastore({
     filename: "./database.jsondb",
-    autoload: true
+    autoload: true,
+    timestampData: true
 });
 
 function encryptString(str) {
@@ -40,7 +41,15 @@ const typeDefs = `
 
   type Mutation {
     delete_note(key: String, password_hash: String!): Boolean
-    update_note(key: String, password_hash: String!, text: String): Note!
+    update_note(
+        key: String, 
+        password_hash: String!, 
+        text: String,
+        """Only for creating"""
+        ttlInSeconds: Int = -1,
+        """Only for creating""" 
+        maxOpeningsCount: Int = -1
+    ): Note!
   }
 
   type Note {
@@ -57,29 +66,73 @@ function isNoteExists(key) {
     })
 }
 
+function deleteNote(key, password_hash) {
+    return new Promise((resolve, reject) => {
+        db.remove({key: key, password_hash: password_hash}, {}, function (
+            err,
+            numRemoved
+        ) {
+            if (numRemoved === 1) {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+    })
+}
+
 const resolvers = {
     Query: {
         note: (root, {key, password_hash}, ctx, info) =>
             new Promise((resolve, reject) => {
-                db.find({key: key, password_hash: password_hash}, function (
+                db.find({key: key, password_hash: password_hash}, async function (
                     err,
                     docs
                 ) {
                     if (docs.length === 0) {
-                        return reject("Not found or wrong password");
+                        return reject("Not found or wrong password 1");
                     }
 
-                    const result = {
-                        key: docs[0].key,
-                        text: decryptString(docs[0].text)
-                    };
-                    resolve(result);
+                    const doc = docs[0];
+
+                    if (doc.ttlInSeconds > 0) {
+                        const ttlInMs = doc.ttlInSeconds * 1000;
+                        const expireDate = new Date(doc.createdAt.getTime() + ttlInMs);
+                        const now = new Date();
+                        if (now.getTime() > expireDate.getTime()) {
+                            await deleteNote(key, password_hash);
+                            return reject("Not found or wrong password 2");
+                        }
+                    }
+                    if (doc.maxOpeningsCount > -1 && doc.openingsCount >= doc.maxOpeningsCount) {
+                        await deleteNote(key, password_hash);
+                        return reject("Not found or wrong password 3");
+                    } else {
+                        db.update(
+                            {_id: doc._id},
+                            {$set: {openingsCount: doc.openingsCount + 1}},
+                            {
+                                returnUpdatedDocs: true
+                            },
+                            (err,
+                             numAffected,
+                             affectedDocument,
+                             upsert) => {
+                                const result = {
+                                    key: affectedDocument.key,
+                                    text: decryptString(affectedDocument.text),
+                                    openingsCount: affectedDocument.openingsCount
+                                };
+
+                                resolve(result);
+                            });
+                    }
                 });
             }),
         note_exist: (root, {key}, ctx, info) => isNoteExists(key)
     },
     Mutation: {
-        update_note: async (root, {key, password_hash, text}, ctx, info) => {
+        update_note: async (root, {key, password_hash, text, ttlInSeconds, maxOpeningsCount}, ctx, info) => {
             const isExists = await isNoteExists(key);
             if (isExists) {
                 return new Promise((resolve, reject) => {
@@ -122,7 +175,10 @@ const resolvers = {
                         {
                             key: noteKey,
                             password_hash: password_hash,
-                            text: encryptString(text)
+                            text: encryptString(text),
+                            ttlInSeconds: ttlInSeconds,
+                            maxOpeningsCount: maxOpeningsCount,
+                            openingsCount: 0
                         },
                         function (err, newDoc) {
                             if (!err) {
@@ -139,19 +195,7 @@ const resolvers = {
                 })
             }
         },
-        delete_note: (root, {key, password_hash}, ctx, info) =>
-            new Promise((resolve, reject) => {
-                db.remove({key: key, password_hash: password_hash}, {}, function (
-                    err,
-                    numRemoved
-                ) {
-                    if (numRemoved === 1) {
-                        resolve(true);
-                    } else {
-                        resolve(false);
-                    }
-                });
-            })
+        delete_note: (root, {key, password_hash}, ctx, info) => deleteNote(key, password_hash)
     }
 };
 
@@ -173,6 +217,4 @@ server.start(
 );
 
 
-// добавить
-// TTL
-// заметок
+// add input validation
