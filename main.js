@@ -26,11 +26,7 @@ function decryptString(str) {
 }
 
 db.ensureIndex({fieldName: "key", unique: true}, function (err) {
-    if (!err) {
-        console.log("Index created: key");
-    } else {
-        console.log("Index create error: key");
-    }
+    err ? console.log("Index create error: key") : console.log("Index created: key");
 });
 
 const typeDefs = `
@@ -60,7 +56,7 @@ const typeDefs = `
 
 function isNoteExists(key) {
     return new Promise((resolve, reject) => {
-        db.count({key: key}, function (err, count) {
+        db.count({key: key}, (err, count) => {
             resolve(count === 1);
         });
     })
