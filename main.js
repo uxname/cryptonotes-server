@@ -46,8 +46,8 @@ function validatePassword(password) {
 
 function validateText(text) {
     const MAX_TEXT_SIZE = 512 * 1000;
-    if (typeof key !== 'string') return false;
-    if (key.length >= MAX_TEXT_SIZE) return false;
+    if (typeof text !== 'string') return false;
+    if (text.length >= MAX_TEXT_SIZE) return false;
     return true;
 }
 
