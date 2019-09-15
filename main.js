@@ -29,6 +29,28 @@ db.ensureIndex({fieldName: "key", unique: true}, function (err) {
     err ? console.log("Index create error: key") : console.log("Index created: key");
 });
 
+function validateKey(key) {
+    if (typeof key !== 'string') return false;
+    // noinspection RedundantIfStatementJS
+    if (/^[a-zA-Z0-9_-]{0,64}$/.test(key)) return false;
+    return true;
+}
+
+function validatePassword(key) {
+    const MAX_PASSWORD_SIZE = 256;
+    if (typeof key !== 'string') return false;
+    if (key.length >= MAX_PASSWORD_SIZE) return false;
+    if (/[^ -~]+/.test(key)) return false; //check for invisible characters
+    return true;
+}
+
+function validateText(text) {
+    const MAX_TEXT_SIZE = 512 * 1000;
+    if (typeof key !== 'string') return false;
+    if (key.length >= MAX_TEXT_SIZE) return false;
+    return true;
+}
+
 const typeDefs = `
   type Query {
     note(key: String!, password_hash: String!): Note
@@ -79,8 +101,10 @@ function deleteNote(key, password_hash) {
 
 const resolvers = {
     Query: {
-        note: (root, {key, password_hash}, ctx, info) =>
-            new Promise((resolve, reject) => {
+        note: (root, {key, password_hash}, ctx, info) => {
+            if (!validateKey(key)) throw new Error('Wrong key format');
+            if (!validatePassword(password_hash)) throw new Error('Wrong password format');
+            return new Promise((resolve, reject) => {
                 db.find({key: key, password_hash: password_hash}, async function (
                     err,
                     docs
@@ -124,11 +148,19 @@ const resolvers = {
                             });
                     }
                 });
-            }),
-        note_exist: (root, {key}, ctx, info) => isNoteExists(key)
+            })
+        },
+        note_exist: (root, {key}, ctx, info) => {
+            if (!validateKey(key)) throw new Error('Wrong key format');
+            return isNoteExists(key)
+        }
     },
     Mutation: {
         update_note: async (root, {key, password_hash, text, ttlInSeconds, maxOpeningsCount}, ctx, info) => {
+            if (!validateKey(key)) throw new Error('Wrong key format');
+            if (!validatePassword(password_hash)) throw new Error('Wrong password format');
+            if (!validateText(text)) throw new Error('Wrong text format');
+
             const isExists = await isNoteExists(key);
             if (isExists) {
                 return new Promise((resolve, reject) => {
@@ -191,7 +223,11 @@ const resolvers = {
                 })
             }
         },
-        delete_note: (root, {key, password_hash}, ctx, info) => deleteNote(key, password_hash)
+        delete_note: (root, {key, password_hash}, ctx, info) => {
+            if (!validateKey(key)) throw new Error('Wrong key format');
+            if (!validatePassword(password_hash)) throw new Error('Wrong password format');
+            return deleteNote(key, password_hash)
+        }
     }
 };
 
