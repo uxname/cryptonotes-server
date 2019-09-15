@@ -32,15 +32,15 @@ db.ensureIndex({fieldName: "key", unique: true}, function (err) {
 function validateKey(key) {
     if (typeof key !== 'string') return false;
     // noinspection RedundantIfStatementJS
-    if (/^[a-zA-Z0-9_-]{0,64}$/.test(key)) return false;
+    if (/^[a-zA-Z0-9_-]{0,64}$/.test(key) === false) return false;
     return true;
 }
 
-function validatePassword(key) {
+function validatePassword(password) {
     const MAX_PASSWORD_SIZE = 256;
-    if (typeof key !== 'string') return false;
-    if (key.length >= MAX_PASSWORD_SIZE) return false;
-    if (/[^ -~]+/.test(key)) return false; //check for invisible characters
+    if (typeof password !== 'string') return false;
+    if (password.length >= MAX_PASSWORD_SIZE) return false;
+    if (/[^ -~]+/.test(password)) return false; //check for invisible characters
     return true;
 }
 
