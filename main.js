@@ -5,11 +5,7 @@ const AES = require("crypto-js/aes");
 const CryptoJS = require("crypto-js");
 const express = require('express');
 
-const config = {
-    password: 'aengivif0fei9wo0n09shee5oweorohchahnei7Keogeish6io2iu2ahd2Ohx1cawi0xuleebi4Theihoh8kah5shu0xich2koo1',
-    hash_salt: 'eih1ahbialae8gohveem9zahx8lughoa0sei9chiegue1Boh8ooleegei1aer7bi6joo1VeaxqNah5peiK9Cah8Taekoghuaquoh',
-    port: 4000
-};
+const config = require('./config');
 
 const db = new Datastore({
     filename: "./database.jsondb",
@@ -237,7 +233,7 @@ const server = new GraphQLServer({
     mocks: false
 });
 
-server.express.use('/', express.static('webapp'));
+server.express.use('/', express.static(config.webapp_folder));
 
 server.start(
     {
